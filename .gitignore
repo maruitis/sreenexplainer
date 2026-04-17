@@ -1,0 +1,32 @@
+# ── SECRET — NEVER commit this ──────────────────────────────
+.env
+
+# ── Node modules (reinstall with: npm install) ───────────────
+node_modules/
+
+# ── OS junk ─────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Editor/IDE ───────────────────────────────────────────────
+.vscode/
+.idea/
+nbproject/private/
+*.nbattrs
+
+# ── Logs ────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+
+# ── Other secrets — never commit these ──────────────────────
+.env.local
+.env.production
+*.pem
+*.key
+
+# ── Claude internal folder ───────────────────────────────────
+.claude/
+
+# ── Test / temp folders ──────────────────────────────────────
+test/
