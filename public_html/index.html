@@ -857,6 +857,78 @@
 
 
     /* ══════════════════════════════════════════
+       API KEY MODAL
+    ══════════════════════════════════════════ */
+    .key-modal-bg {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.75);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000; padding: 20px;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    .key-modal {
+      background: #0d1428;
+      border: 1px solid rgba(99,102,241,0.45);
+      border-radius: 22px;
+      padding: 38px 34px;
+      max-width: 480px; width: 100%;
+      box-shadow: 0 28px 70px rgba(0,0,0,0.72), inset 0 1px 0 rgba(255,255,255,0.06);
+      animation: fadeUp 0.3s var(--ease) both;
+    }
+    .key-modal h2 { font-size: 1.35rem; font-weight: 800; color: var(--text); margin-bottom: 10px; }
+    .key-modal p  { font-size: 0.88rem; color: var(--text-muted); line-height: 1.7; margin-bottom: 22px; }
+    .key-modal a  { color: var(--accent-2); text-decoration: underline; }
+    .key-input {
+      width: 100%;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(99,102,241,0.35);
+      border-radius: 12px;
+      padding: 14px 16px;
+      color: var(--text);
+      font-size: 0.9rem; font-family: 'Courier New', monospace;
+      outline: none;
+      transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+    }
+    .key-input:focus { border-color: rgba(99,102,241,0.75); background: rgba(255,255,255,0.08); }
+    .key-input::placeholder { color: var(--text-dim); }
+    .key-modal-btns { display: flex; gap: 10px; margin-top: 16px; }
+    .btn-save-key {
+      flex: 1;
+      background: linear-gradient(140deg, #5b5ef4, #6366f1, #4f46e5);
+      color: #fff; border: none; border-radius: 12px;
+      padding: 15px 20px; font-size: 0.95rem; font-weight: 700;
+      cursor: pointer; font-family: inherit;
+      transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+    }
+    .btn-save-key:hover { opacity: 0.88; transform: translateY(-1px); }
+    .btn-close-key {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px; padding: 15px 20px;
+      color: var(--text-muted); font-size: 0.9rem; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+      transition: background var(--dur) var(--ease);
+    }
+    .btn-close-key:hover { background: rgba(255,255,255,0.1); }
+    .key-status { font-size: 0.78rem; color: var(--green); margin-top: 10px; text-align: center; min-height: 1.2em; }
+
+    /* Key button in settings bar */
+    .btn-key {
+      background: rgba(99,102,241,0.12);
+      border: 1px solid rgba(99,102,241,0.3);
+      border-radius: var(--r-pill);
+      padding: 6px 14px;
+      color: var(--accent-2);
+      font-size: 0.74rem; font-weight: 700;
+      cursor: pointer; white-space: nowrap; font-family: inherit;
+      transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+    }
+    .btn-key:hover { background: rgba(99,102,241,0.24); border-color: rgba(99,102,241,0.55); }
+    .btn-key.has-key { border-color: rgba(16,185,129,0.35); color: var(--green); background: rgba(16,185,129,0.08); }
+
+
+    /* ══════════════════════════════════════════
        TOAST
     ══════════════════════════════════════════ */
     .toast {
@@ -900,6 +972,10 @@
         <input type="range" id="contrastSlider" min="0" max="100" value="0" step="5" aria-label="Contrast" />
         <span class="setting-value" id="contrastLabel">Normal</span>
       </div>
+
+      <div class="settings-sep"></div>
+
+      <button class="btn-key" id="keyBtn" title="Set your OpenRouter API key">🔑 API Key</button>
 
     </div>
   </div>
@@ -1047,6 +1123,31 @@
   </div><!-- /main -->
 
   <div class="toast" id="toast"></div>
+
+
+  <!-- ════════════════════════════════
+       API KEY MODAL
+  ════════════════════════════════ -->
+  <div class="key-modal-bg" id="keyModal" style="display:none">
+    <div class="key-modal">
+      <h2>🔑 Enter your OpenRouter API Key</h2>
+      <p>
+        This app uses AI to explain your screen. To make it work, you need a <strong>free</strong>
+        OpenRouter API key.<br><br>
+        👉 Get yours in 1 minute at <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a><br><br>
+        Your key is saved only in <strong>your browser</strong> — it is never sent to any server, never shared with anyone.
+      </p>
+      <input type="password" class="key-input" id="keyInput"
+             placeholder="sk-or-v1-…  (paste your key here)"
+             autocomplete="off" spellcheck="false" />
+      <div class="key-status" id="keyStatus"></div>
+      <div class="key-modal-btns">
+        <button class="btn-save-key" id="saveKeyBtn">✅&nbsp; Save &amp; Continue</button>
+        <button class="btn-close-key" id="closeKeyBtn">Close</button>
+      </div>
+    </div>
+  </div>
+
 
   <script src="app.js"></script>
 </body>
