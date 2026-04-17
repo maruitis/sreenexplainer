@@ -35,7 +35,12 @@ const AI_MODEL           = 'openai/gpt-4o-mini';   // cheap, fast, great at visi
 // 3. Middleware — runs on every request
 // ------------------------------------------------------------
 
-app.use(cors());
+app.use(cors({
+  origin: [
+    "https://maruitis.github.io",
+    "http://localhost:3000"
+  ]
+}));
 app.use(express.json({ limit: '20mb' }));
 app.use(express.static(path.join(__dirname, 'public_html')));
 

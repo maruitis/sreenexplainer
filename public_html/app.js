@@ -56,173 +56,12 @@ let cropEX = 0, cropEY = 0;     // selection end   (canvas pixels)
 
 
 // ============================================================
-//  OPENROUTER — direct browser API calls (no backend needed)
-//
-//  All AI features call OpenRouter directly from the browser.
-//  The user's key is stored in localStorage — never sent
-//  to any server, never committed to GitHub.
+//  BACKEND — all AI calls go to our Render.com server.
+//  The API key lives there, hidden. Seniors just click — done.
 // ============================================================
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const AI_MODEL       = "openai/gpt-4o-mini";
+const BACKEND = "https://explain-my-screen.onrender.com";
 
-// Get the stored key (empty string if not set)
-function getApiKey() {
-  return localStorage.getItem("or_api_key") || "";
-}
-
-// Open the key entry modal
-function openKeyModal() {
-  const modal = document.getElementById("keyModal");
-  if (!modal) return;
-  const inp = document.getElementById("keyInput");
-  if (inp) inp.value = getApiKey();
-  const st = document.getElementById("keyStatus");
-  if (st) st.textContent = "";
-  modal.style.display = "flex";
-}
-
-// Update the key button indicator in the settings bar
-function updateKeyBtn() {
-  const btn = document.getElementById("keyBtn");
-  if (!btn) return;
-  if (getApiKey()) {
-    btn.textContent = "🔑 Key ✓";
-    btn.classList.add("has-key");
-    btn.title = "API key is set — click to change it";
-  } else {
-    btn.textContent = "🔑 API Key";
-    btn.classList.remove("has-key");
-    btn.title = "Set your OpenRouter API key";
-  }
-}
-
-// Call OpenRouter with an array of messages
-// Returns the AI's reply text (string)
-async function callOpenRouter(messages, maxTokens) {
-  const key = getApiKey();
-  if (!key) {
-    openKeyModal();
-    throw new Error("Please enter your OpenRouter API key first.");
-  }
-
-  const resp = await fetch(OPENROUTER_URL, {
-    method: "POST",
-    headers: {
-      "Authorization": "Bearer " + key,
-      "Content-Type":  "application/json",
-      "HTTP-Referer":  window.location.href,
-      "X-Title":       "Explain My Screen AI"
-    },
-    body: JSON.stringify({
-      model:      AI_MODEL,
-      messages:   messages,
-      max_tokens: maxTokens || 1024
-    })
-  });
-
-  if (!resp.ok) {
-    const err = await resp.json().catch(function () { return {}; });
-    // 401 / 403 = bad key — clear it and show modal
-    if (resp.status === 401 || resp.status === 403) {
-      localStorage.removeItem("or_api_key");
-      updateKeyBtn();
-      openKeyModal();
-      throw new Error("Invalid API key — please re-enter your key.");
-    }
-    throw new Error((err.error && err.error.message) || ("OpenRouter error " + resp.status));
-  }
-
-  const data = await resp.json();
-  return data.choices[0].message.content.trim();
-}
-
-// Prompt the AI uses for every Analyse request
-const ANALYSE_PROMPT = `You are a kind, patient helper for senior citizens who find technology confusing.
-
-Look at this screenshot and do three things:
-
-1. NAME THE APP — Identify exactly what app, website or program is shown.
-   - Give the real, specific name people use every day.
-   - Good examples: "WhatsApp", "Gmail", "Facebook", "iPhone Settings",
-     "Google Chrome", "Microsoft Word", "YouTube", "Amazon", "Netflix",
-     "Windows 11 Settings", "File Explorer", "Google Maps", "Outlook"
-   - If you can see a logo, address bar, or title bar — use that.
-   - Also give a short type label: what kind of app it is.
-   - Good type examples: "Messaging App", "Email", "Social Media",
-     "Web Browser", "Online Shop", "Video Streaming", "Phone Settings",
-     "Word Processor", "Spreadsheet", "Maps", "Banking App", "News"
-   - If you truly cannot tell, say "Unknown App"
-
-2. EXPLAIN THE SCREEN — Describe what the person can see, and locate each important element.
-   - Use VERY simple words. No tech jargon.
-   - Write bullet points starting with the \u2022 symbol.
-   - Keep each bullet point to one short sentence.
-   - Be warm, friendly and reassuring.
-   - Imagine explaining this to your grandmother.
-   - For each important button, box, or area you mention, also fill in the "elements" array.
-
-3. CHECK FOR SCAMS — Look carefully for anything suspicious, including:
-   - Requests for passwords, bank details, or personal information
-   - Fake virus or security warnings designed to cause fear
-   - "You have won a prize!" or lottery messages
-   - Pressure to act immediately or call a phone number urgently
-   - Misspelled or strange-looking website addresses
-   - Anything that feels wrong or unusual
-
-Return ONLY valid JSON. No extra text. No markdown. Just the JSON object:
-
-{
-  "app": "WhatsApp",
-  "appType": "Messaging App",
-  "explanation": "\u2022 First thing on screen\n\u2022 Second thing on screen\n\u2022 What they can do here\n\u2022 Any important buttons",
-  "elements": [
-    { "label": "Send button",  "x": 88, "y": 91, "width": 8,  "height": 5 },
-    { "label": "Message box", "x": 5,  "y": 91, "width": 80, "height": 5 },
-    { "label": "Chat list",   "x": 0,  "y": 10, "width": 100,"height": 75 }
-  ],
-  "scam": "safe",
-  "scamReason": "Everything looks normal. This appears to be a genuine website."
-}
-
-Rules for the elements array:
-- Include the 3 to 6 most important visible buttons, boxes, menus, or areas
-- x and y are the TOP-LEFT corner, as a PERCENTAGE of the full image width and height (0-100)
-- width and height are also PERCENTAGES
-- Make sure x + width \u2264 100 and y + height \u2264 100
-- Use short plain-English labels (e.g. "Search bar", "Back button", "Profile photo")
-- If you cannot identify any elements, return an empty array []
-
-Rules for the scam field — use EXACTLY one of: "safe", "suspicious", or "scam"
-Rules for scamReason — always fill it in, use very simple plain English, 1-2 sentences.`;
-
-// Prompt used for every Check for Scam request
-const SCAM_PROMPT = `You are a cybersecurity expert helping senior citizens stay safe online.
-
-Look carefully at this screenshot and check for any signs of a scam, fraud, or phishing attack.
-
-Look for:
-- Requests for passwords, bank details, or personal information
-- Fake virus or security warnings designed to cause fear or panic
-- "You have won a prize!" or lottery messages
-- Pressure to act immediately or call a phone number urgently
-- Misspelled or strange-looking website addresses
-- Requests to install software or click suspicious links
-- Unusual pop-up windows or alerts
-
-Return ONLY valid JSON. No extra text. No markdown:
-
-{
-  "status": "safe",
-  "reason": "One or two simple sentences explaining why this is safe or dangerous.",
-  "alerts": [],
-  "whatToDo": "One short sentence telling the person what to do right now."
-}
-
-For status use EXACTLY one of: "safe", "suspicious", or "scam"
-For the alerts array — add one entry per warning:
-{ "title": "Short title", "description": "Simple explanation" }
-Leave alerts as [] if everything is safe.`;
 
 
 // ------------------------------------------------------------
@@ -298,38 +137,19 @@ analyseBtn.addEventListener("click", async function () {
 
   try {
 
-    // ----- Call OpenRouter AI directly from the browser -----
-    const aiText = await callOpenRouter([
-      {
-        role: "user",
-        content: [
-          { type: "image_url", image_url: { url: currentImage } },
-          { type: "text",      text: ANALYSE_PROMPT }
-        ]
-      }
-    ], 1024);
+    // ----- Send image to our backend server -----
+    const response = await fetch(BACKEND + "/api/analyze", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ image: currentImage })
+    });
 
-    // ----- Parse the JSON the AI returned -----
-    let data;
-    try {
-      data = JSON.parse(aiText);
-    } catch (parseErr) {
-      // Sometimes the AI wraps JSON in code fences — strip them
-      const match = aiText.match(/\{[\s\S]*\}/);
-      if (match) {
-        data = JSON.parse(match[0]);
-      } else {
-        throw new Error("AI did not return valid JSON — please try again.");
-      }
+    if (!response.ok) {
+      const errorData = await response.json().catch(function () { return {}; });
+      throw new Error(errorData.error || "Server error — please try again.");
     }
 
-    // Fill any missing fields with safe defaults
-    if (!data.app)         data.app         = "Unknown App";
-    if (!data.appType)     data.appType     = "";
-    if (!data.explanation) data.explanation = "No explanation available.";
-    if (!data.elements)    data.elements    = [];
-    if (!data.scam)        data.scam        = "safe";
-    if (!data.scamReason)  data.scamReason  = "";
+    const data = await response.json();
 
     // ----- Display the results on the page -----
     displayResults(data);
@@ -541,20 +361,17 @@ simplerBtn.addEventListener("click", async function () {
 
   try {
 
-    // ----- Ask OpenRouter to simplify the explanation -----
-    const simplifyPrompt =
-      "You are helping a senior citizen (70+ years old) understand technology.\n\n" +
-      "Rewrite the text below so that:\n" +
-      "- It is SHORTER than the original\n" +
-      "- Every word is simple — no technical terms at all\n" +
-      "- Sentences are very short (under 12 words each)\n" +
-      "- The tone is warm, calm and reassuring\n\n" +
-      "Return ONLY the simplified text. No headings. No bullet points. No JSON.\n\n" +
-      "Text to simplify:\n" + lastExplanation;
+    // ----- Send text to backend to simplify -----
+    const response = await fetch(BACKEND + "/api/simplify", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ text: lastExplanation })
+    });
 
-    const simplified = await callOpenRouter([
-      { role: "user", content: simplifyPrompt }
-    ], 400);
+    if (!response.ok) throw new Error("Server error — please try again.");
+
+    const data = await response.json();
+    const simplified = data.simplified;
 
     // ----- Replace the explanation box with the simpler text -----
     explanationBox.innerHTML = "";
@@ -610,39 +427,16 @@ scamBtn.addEventListener("click", async function () {
   stopSpeaking();
 
   try {
-    // ----- Call OpenRouter directly for scam analysis -----
-    const scamText = await callOpenRouter([
-      {
-        role: "user",
-        content: [
-          { type: "image_url", image_url: { url: currentImage } },
-          { type: "text",      text: SCAM_PROMPT }
-        ]
-      }
-    ], 512);
+    // ----- Send image to backend for scam analysis -----
+    const response = await fetch(BACKEND + "/api/scam-check", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ image: currentImage })
+    });
 
-    let data;
-    try {
-      data = JSON.parse(scamText);
-    } catch (parseErr) {
-      const m = scamText.match(/\{[\s\S]*\}/);
-      if (m) {
-        data = JSON.parse(m[0]);
-      } else {
-        data = { status: "safe", reason: "Could not analyse — please try again.", alerts: [], whatToDo: "Try uploading the image again." };
-      }
-    }
+    if (!response.ok) throw new Error("Server error — please try again.");
 
-    // Normalise status to exactly "safe", "suspicious", or "scam"
-    const rawStatus = (data.status || data.riskLevel || "safe").toLowerCase();
-    if      (rawStatus === "scam" || rawStatus === "critical" || rawStatus === "high")   data.status = "scam";
-    else if (rawStatus === "suspicious" || rawStatus === "medium" || rawStatus === "low") data.status = "suspicious";
-    else                                                                                   data.status = "safe";
-
-    if (!data.reason)   data.reason   = data.recommendation || "Analysis complete.";
-    if (!data.alerts)   data.alerts   = [];
-    if (!data.whatToDo) data.whatToDo = "You can continue using this page normally.";
-
+    const data = await response.json();
     displayScamResult(data);
 
   } catch (error) {
@@ -1657,55 +1451,4 @@ if (window.speechSynthesis) {
 }
 
 
-// ============================================================
-//  API KEY MODAL — event handlers
-//
-//  The modal is shown automatically on first visit (no key yet)
-//  and can be re-opened any time via the 🔑 button in the bar.
-// ============================================================
 
-(function () {
-  const modal     = document.getElementById("keyModal");
-  const keyInput  = document.getElementById("keyInput");
-  const saveBtn   = document.getElementById("saveKeyBtn");
-  const closeBtn  = document.getElementById("closeKeyBtn");
-  const keyStatus = document.getElementById("keyStatus");
-  const keyBtn    = document.getElementById("keyBtn");
-
-  if (!modal) return;   // safety — should always exist
-
-  // ── Save key ──────────────────────────────────────────────
-  function doSave() {
-    const key = (keyInput ? keyInput.value : "").trim();
-    if (!key) {
-      if (keyStatus) keyStatus.textContent = "⚠️ Please paste your key first.";
-      return;
-    }
-    localStorage.setItem("or_api_key", key);
-    updateKeyBtn();
-    modal.style.display = "none";
-    showToast("✅ API key saved — all features are now unlocked!");
-  }
-
-  if (saveBtn)  saveBtn.addEventListener("click", doSave);
-  if (keyInput) keyInput.addEventListener("keydown", function (e) { if (e.key === "Enter") doSave(); });
-
-  // ── Close without saving ──────────────────────────────────
-  if (closeBtn) closeBtn.addEventListener("click", function () { modal.style.display = "none"; });
-
-  // ── Click outside modal box to close ──────────────────────
-  modal.addEventListener("click", function (e) {
-    if (e.target === modal) modal.style.display = "none";
-  });
-
-  // ── 🔑 button in settings bar ────────────────────────────
-  if (keyBtn) keyBtn.addEventListener("click", openKeyModal);
-
-  // ── Set initial button state ──────────────────────────────
-  updateKeyBtn();
-
-  // ── Show modal automatically on first visit ───────────────
-  if (!getApiKey()) {
-    setTimeout(openKeyModal, 700);
-  }
-})();
